@@ -1,0 +1,246 @@
+---
+title: "Final Exam"
+author: "Blain Morin"
+date: "October 27, 2018"
+output: pdf_document
+header-includes:
+- \usepackage{float}
+---
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+library(knitr)
+library(readr)
+library(lme4)
+library(tidyr)
+library(dplyr)
+library(stargazer)
+library(extrafont)
+library(extrafontdb)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(nlme)
+
+```
+
+# Part 1:
+
+## Question 1: Create the following plots:
+
+### i. Line (“spaghetti”) plots to present the individual trajectories of the primary outcome by treatment group
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+### Data import and cleaning
+leprosy = read_csv("leprosy.csv")
+
+### Add id variable
+leprosy = leprosy %>%
+  mutate(id = row_number())
+
+### Make drug a factor
+leprosy = leprosy %>%
+  mutate(drug = as.factor(drug))
+
+### Reshape to long format
+leprosy = leprosy %>%
+  gather(time, y, y1:y2)
+
+### Turn time into 1 and 2
+leprosy = leprosy %>%
+  mutate(time = ifelse(time == "y1", 1, 2)) 
+
+
+
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+
+leprosy %>% 
+  ggplot(aes(x = time, y = y)) +
+  geom_line(aes(group = id)) +
+  facet_wrap(~drug) +
+  theme_classic() +
+  ylab("Leprosy Bacilli Measurement") +
+  xlab("Time") +
+  ggtitle("Individual Trajectories by Drug Group") +
+  scale_x_continuous(breaks = c(1,2)) +
+  theme(text=element_text(size=12,  family="CM Sans"), strip.background = element_blank())
+  
+
+```
+
+
+### ii. Plots to present the overall change in the mean primary outcome by treatment group
+
+```{r, echo = FALSE}
+
+leprosy %>%
+  ggplot(aes(x = time, y = y)) +
+  geom_boxplot(aes(group = time)) +
+  facet_wrap(~drug) +
+  theme_classic() +
+  ylab("Leprosy Bacilli Measurement") +
+  xlab("Time") +
+  ggtitle("Boxplots: Average Measurement Over Time, by Drug") +
+  scale_x_continuous(breaks = c(1,2)) +
+  theme(text=element_text(size=12,  family="CM Sans"), strip.background = element_blank())
+  
+
+```
+
+
+## Question 2: Choose an appropriate regression model to describe the effect of treatment on the change in the primary outcome over time. Fit the model to the data and answer the following questions:
+
+```{r, echo = FALSE, results = 'asis'}
+
+
+q1model1 = lmer(y ~ as.factor(drug) + time + as.factor(drug):time + (1|id), data = leprosy)
+q1model2 = lmer(y ~ as.factor(drug) + time + as.factor(drug):time + (time - 1|id), data = leprosy)
+q1model3 = gls(y ~ as.factor(drug) + time + as.factor(drug):time, 
+               data = leprosy, correlation = corSymm(form = ~ 0 | id))
+
+stargazer(q1model1, q1model2, q1model3, 
+          header = FALSE,
+          title = "Mixed Model Regressions",
+          table.placement = "H",
+          covariate.labels = c("Drug B",
+                               "Drug C",
+                               "Time (Continuous)",
+                               "Drug B : Time",
+                               "Drug C : Time"),
+          dep.var.labels = c("Leprosy Bacilli Measurement"),
+          notes = "Reference Group is Drug A",
+          column.labels = c("Random Intercept Model", "Random Slope Model", "Fixed Effects Model"),
+          model.names = FALSE
+          )
+
+```
+
+### i. Explain why you chose the particular model.
+
+### ii. Is the change in the primary outcome the same for all three treatments according to this model?
+
+### iii. Interpret the regression coefficients.
+
+# Part 2:
+
+## Question 3: Explore the data. Provide descriptive statistics and graphs to present the information included in this dataset in a meaningful and comprehensive way to your collaborators.
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+
+### Load Data
+anti = read_csv("antisocial_score.csv")
+
+```
+
+```{r, results = 'asis', echo = FALSE}
+
+### Summary Plot
+variables = anti %>%
+  select(antiscore, female, pov, momage, childage, hispanic, black, momwork, married)
+
+stargazer(as.data.frame(variables), 
+          header = FALSE,
+          title = "Summary Statistics",
+          summary.stat = c("mean", "sd", "min", "max", "n"),
+          covariate.labels = c("Anti Score",
+                               "Female",
+                               "Poverty",
+                               "Mom's Age",
+                               "Child's Age",
+                               "Hispanic",
+                               "Black",
+                               "Mom Works",
+                               "Mom Married"))
+
+```
+
+```{r, echo = FALSE}
+
+### Individual trajectories boys vs girls
+
+anti %>%
+  filter(id <= 150) %>%
+  ggplot(aes(x = occ, y = antiscore)) +
+  geom_line(aes(group = id)) +
+  facet_wrap(~ifelse (female, "Female", "Male")) +
+  theme_classic() +
+  ylab("Anti Social Score \n (Higher values mean more anti-social behavior)") +
+  xlab("Year") +
+  ggtitle("Individual Trajectories Over Time, By Gender") +
+  scale_x_continuous(breaks = c(90, 92, 94)) +
+  theme(text=element_text(size=12,  family="CM Sans"), strip.background = element_blank())
+
+```
+
+```{r, echo = FALSE}
+
+### Mean trajectories boys vs girls
+
+anti %>%
+  ggplot(aes(x = occ, y = antiscore)) +
+  geom_boxplot(aes(group = occ)) +
+  facet_wrap(~ifelse (female, "Female", "Male")) +
+  theme_classic() +
+  ylab("Anti Social Score \n (Higher values mean more anti-social behavior)") +
+  xlab("Year") +
+  ggtitle("Mean Trajectories Over Time, By Gender") +
+  scale_x_continuous(breaks = c(90, 92, 94)) +
+  theme(text=element_text(size=12,  family="CM Sans"), strip.background = element_blank()) 
+
+
+
+```
+
+
+
+
+
+## Question 4: : One of the doctors (Doctor 1) is only interested in overall differences in the antisocial behavior scores between baseline and the end of the follow-up period (1994). He is not interested in describing any particular time trend. He also wants to compare these differences between boys and girls. 
+
+### i. What methodology would you apply in order to answer this doctor’s research question? State the form (write the mathematical formula) of the model (M1) that you will fit to your data. 
+
+$$ M1: E[Y_i | X_i] = \beta_0 + \beta_1Female  + \beta_3Time94 $$
+
+### ii. Based on the model results what is your conclusion about the changes in the mean response over time between boys and girls?
+
+```{r, echo = FALSE, results = 'asis'}
+
+### Run Mean Response Model
+
+m1data = anti %>%
+  filter(occ != 92) %>%
+  mutate(year = as.factor(occ))
+
+m1 = gls(antiscore ~ female + year, 
+               data = m1data, correlation = corSymm(form = ~ 0 | id))
+
+stargazer(m1,
+          header = FALSE,
+          dep.var.labels = "Anti Social Score",
+          title = "Regression Results M1",
+          covariate.labels = c(
+            "Female",
+            "Year = 94"),
+          notes = "Year is categorical, reference year is 1990")
+
+
+```
+
+### iii. What is the model estimate of the difference in the average antisocial behavior scores between:
+
+#### a. boys and girls at baseline?
+
+#### b. boys and girls in 1994?
+
+#### c. 1990 and 1994 for boys?
+
+#### d. 1990 and 1994 for girls?
+
+#### e. boys in 1994 and girls in 1990?
+
+#### f. boys in 1990 and girls in 1994?
+
+
