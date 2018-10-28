@@ -143,6 +143,7 @@ variables = anti %>%
 
 stargazer(as.data.frame(variables), 
           header = FALSE,
+          table.placement = "H",
           title = "Summary Statistics",
           summary.stat = c("mean", "sd", "min", "max", "n"),
           covariate.labels = c("Anti Score",
@@ -202,7 +203,7 @@ anti %>%
 
 ### i. What methodology would you apply in order to answer this doctor’s research question? State the form (write the mathematical formula) of the model (M1) that you will fit to your data. 
 
-$$ M1: E[Y_i | X_i] = \beta_0 + \beta_1Female  + \beta_3Time94 $$
+$$ M1: E[Y_i | X_i] = \beta_0 + \beta_1Female  + \beta_3Time94 + \beta_4Female*Time94 $$
 
 ### ii. Based on the model results what is your conclusion about the changes in the mean response over time between boys and girls?
 
@@ -214,16 +215,18 @@ m1data = anti %>%
   filter(occ != 92) %>%
   mutate(year = as.factor(occ))
 
-m1 = gls(antiscore ~ female + year, 
+m1 = gls(antiscore ~ female + year + female:year, 
                data = m1data, correlation = corSymm(form = ~ 0 | id))
 
 stargazer(m1,
           header = FALSE,
           dep.var.labels = "Anti Social Score",
+          table.placement = "H",
           title = "Regression Results M1",
           covariate.labels = c(
             "Female",
-            "Year = 94"),
+            "Year = 94",
+            "Female * Time94"),
           notes = "Year is categorical, reference year is 1990")
 
 
