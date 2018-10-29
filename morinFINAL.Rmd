@@ -512,7 +512,8 @@ forplot %>%
 ### First start everyone at time 1
 anti = anti %>%
   group_by(id) %>%
-  mutate(time = occ - min(occ))
+  mutate(time = occ - min(occ)) %>%
+  ungroup()
 
 
 ### Rand int and slope time
@@ -685,9 +686,75 @@ stargazer(q6model4, q6model5, q6model6, q6model7, q6model8,
 
 ### iii. Provide descriptive statistics and plot(s) to compare the estimated (by M3) vs the observed averages by sex at each time point. 
 
-```{r}
+```{r, echo = FALSE}
 
+anti1 = anti %>%
+  mutate(preds2 = fitted(q6model8)) %>%
+  group_by(occ, female) %>%
+  mutate(meananti = mean(antiscore)) %>%
+  mutate(meanantipreds = mean(preds2)) %>%
+  ungroup()
 
+anti1 %>% ggplot(aes(x = occ)) +
+  geom_line(aes(y = meananti, group = as.factor(female)), color = "blue") +
+  geom_line(aes(y = meanantipreds, group = as.factor(female)), color = "red") +
+  facet_wrap(~~ifelse (female, "Female", "Male")) +
+  theme_classic() +
+  ylab("Anti Social Score") +
+  xlab("Year") +
+  ggtitle("Observed (Blue) vs Predicted (Red) Mean") +
+  scale_x_continuous(breaks = c(90, 92, 94)) +
+  theme(text=element_text(size=12,  family="CM Sans"), strip.background = element_blank()) 
+  
+```
+
+### iv. The doctor wishes to know how well the model predicts for individuals with id = 1, 4, 8, 24, 39, and 41. Provide him with the actual values (observed and predicted), and a plot to answer his question. 
+
+```{r, echo = FALSE}
+
+### Predicted vs observed plot
+anti = anti %>%
+  mutate(predictions1 = fitted(q6model8))
+
+forplot = anti %>%
+  filter(id %in% c(1, 4, 8, 24, 39, 41))
+
+forplot %>%
+  ggplot(aes(x = occ)) +
+  geom_point(aes(y = antiscore)) + 
+  geom_line(aes(y = predictions1, group = id)) + 
+  facet_wrap(~id) +
+  theme_classic() +
+  ylab("Anti Social Score") +
+  xlab("Year") +
+  ggtitle("Observed vs Predicted: Mixed") +
+  scale_x_continuous(breaks = c(90, 92, 94)) +
+  theme(text=element_text(size=12,  family="CM Sans"), strip.background = element_blank()) 
+
+```
+
+```{r, echo = FALSE, results = 'asis'}
+
+### Predicted vs. Observed Table
+
+fortable = anti %>%
+  select(id, occ, antiscore, predictions1) %>%
+  mutate(predictions1 = round(predictions1, digits = 0)) %>%
+  mutate(error = antiscore - predictions1) %>%
+  filter(id %in% c(1, 4, 8, 24, 39, 41)) %>%
+  rename(id = id, Year = occ, Obeserved = antiscore, Predicted = predictions1, Error = error)
+
+### Remove Rownames
+row.names(fortable) = c()
+
+### Create table
+stargazer(fortable,
+          header = FALSE,
+          summary = FALSE,
+          digits = 2,
+          rownames = FALSE,
+          table.placement = "H",
+          title = "Predicted vs Observed Antisocial Score")
 
 
 ```
