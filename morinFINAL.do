@@ -56,4 +56,10 @@ estimate store ranintslope
 estimate stats base ranint ranintslope
 
 
+***********************
+*** Part 2 ************
+***********************
 
+import delimited C:\Users\blain\Documents\skewl\longitudinalFinal\antisocial_score.csv, clear
+
+xtset id occ

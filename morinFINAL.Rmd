@@ -21,6 +21,7 @@ library(ggplot2)
 library(grid)
 library(gridExtra)
 library(nlme)
+library(sjPlot)
 
 ```
 
@@ -199,11 +200,13 @@ anti %>%
 
 
 
-## Question 4: : One of the doctors (Doctor 1) is only interested in overall differences in the antisocial behavior scores between baseline and the end of the follow-up period (1994). He is not interested in describing any particular time trend. He also wants to compare these differences between boys and girls. 
+## Question 4: One of the doctors (Doctor 1) is only interested in overall differences in the antisocial behavior scores between baseline and the end of the follow-up period (1994). He is not interested in describing any particular time trend. He also wants to compare these differences between boys and girls. 
 
 ### i. What methodology would you apply in order to answer this doctor’s research question? State the form (write the mathematical formula) of the model (M1) that you will fit to your data. 
 
-$$ M1: E[Y_i | X_i] = \beta_0 + \beta_1Female  + \beta_3Time94 + \beta_4Female*Time94 $$
+Mean Response
+
+$$ M1: E[Y_i | X_i] = \beta_0 + \beta_1Female  + \beta_2Time94 + \beta_3Female*Time94 $$
 
 ### ii. Based on the model results what is your conclusion about the changes in the mean response over time between boys and girls?
 
@@ -236,14 +239,455 @@ stargazer(m1,
 
 #### a. boys and girls at baseline?
 
+$$ /\beta_1/ = 10.552       $$
+
 #### b. boys and girls in 1994?
+
+$$ /\beta_1 + \beta_3/ =  15.569 $$
 
 #### c. 1990 and 1994 for boys?
 
+$$ /\beta_2/ = 8.396 $$
+
 #### d. 1990 and 1994 for girls?
+
+$$ /\beta_2 + \beta_3/ = 2.98 $$
 
 #### e. boys in 1994 and girls in 1990?
 
+$$ /\beta_2 - \beta_1/ = 18.948 $$
+
 #### f. boys in 1990 and girls in 1994?
 
+$$ /\beta_1 + \beta_2 + \beta_3/ = 7.572 $$
 
+### iv. List key weaknesses of this methodology
+
+* Not suitable for unbalanced data
+* Ignores time ordering
+* Hard to include continuous covariates in the model 
+* The total number of parameters grows rapidly with
+
+
+
+## Question 5: Another doctor (Doctor 2), who is also interested in overall changes of antisocial behavior score between boys and girls, believes that there must be some time trend in these changes. He wants to describe the trends during the follow-up period, adjusting for other important covariates.
+
+### i. What methodology (model M2) would be more appropriate in this case? Why?
+
+-Marginal model, not interested in individual predictions, can add continuous covariates, treats time as continuous
+
+### ii. Using this methodology try to answer the primary research question to the best of your ability, by:
+
+#### a. Choosing an appropriate covariance pattern model. 
+
+```{r, results = 'asis', echo = FALSE}
+
+unstructured = gls(model = antiscore ~ occ + 
+      I(occ^2) +
+      momage + 
+      as.factor(female) + 
+      childage + 
+      hispanic + 
+      black + 
+      as.factor(momwork) +
+      as.factor(married) +
+      pov + 
+      as.factor(female):occ +
+      as.factor(female):I(occ^2),
+    data = anti,
+    correlation = corSymm(form = ~ 0 | id)
+    )
+
+AR1 = gls(model = antiscore ~ occ + 
+      I(occ^2) +
+      momage + 
+      as.factor(female) + 
+      childage + 
+      hispanic + 
+      black + 
+      as.factor(momwork) +
+      as.factor(married) +
+      pov + 
+      as.factor(female):occ +
+      as.factor(female):I(occ^2),
+    data = anti,
+    correlation = corAR1(form = ~ 0 | id)
+    )
+
+exchangeable = gls(model = antiscore ~ occ + 
+      I(occ^2) +
+      momage + 
+      as.factor(female) + 
+      childage + 
+      hispanic + 
+      black + 
+      as.factor(momwork) +
+      as.factor(married) +
+      pov + 
+      as.factor(female):occ +
+      as.factor(female):I(occ^2),
+    data = anti,
+    correlation = corCompSymm(form = ~ 0 | id)
+    )
+
+### Create Table
+### Unstructured is best
+stargazer(unstructured, exchangeable, AR1,
+          header = FALSE,
+          title = "Choosing Best Correlation Structure for Full Model",
+          dep.var.labels = "Anti Social Score",
+          table.placement = "H",
+          column.labels = c("Unstructured", "AR1", "Exchangeable"),
+          covariate.labels = c("Year (Continuous)",
+                               "Year2",
+                               "Mom Age",
+                               "Female = 1",
+                               "Age",
+                               "Hispanic = 1",
+                               "Black = 1",
+                               "Mom Works = 1",
+                               "Mom Married = 1",
+                               "Poverty = 1",
+                               "Year * Female",
+                               "Year2 * Female"))
+
+```
+
+#### b. Following a model selection procedure to identify important covariates to adjust the results.
+
+```{r, echo = FALSE, results = 'asis'}
+
+### Backwards step procedure
+full = gls(model = antiscore ~ occ + 
+      I(occ^2) +
+      momage + 
+      as.factor(female) + 
+      childage + 
+      hispanic + 
+      black + 
+      as.factor(momwork) +
+      as.factor(married) +
+      pov + 
+      as.factor(female):occ +
+      as.factor(female):I(occ^2),
+    data = anti,
+    correlation = corSymm(form = ~ 0 | id)
+    )
+
+### Remove time2:female
+full1 = gls(model = antiscore ~ occ + 
+      I(occ^2) +
+      momage + 
+      as.factor(female) + 
+      childage + 
+      hispanic + 
+      black + 
+      as.factor(momwork) +
+      as.factor(married) +
+      pov + 
+      as.factor(female):occ,
+    data = anti,
+    correlation = corSymm(form = ~ 0 | id)
+    )
+
+### Remove mom married
+full2 = gls(model = antiscore ~ occ + 
+      I(occ^2) +
+      momage + 
+      as.factor(female) + 
+      childage + 
+      hispanic + 
+      black + 
+      as.factor(momwork) +
+      pov + 
+      as.factor(female):occ,
+    data = anti,
+    correlation = corSymm(form = ~ 0 | id)
+    )
+
+### Remove Year2
+full3 = gls(model = antiscore ~ occ + 
+      momage + 
+      as.factor(female) + 
+      childage + 
+      hispanic + 
+      black + 
+      as.factor(momwork) +
+      pov + 
+      as.factor(female):occ,
+    data = anti,
+    correlation = corSymm(form = ~ 0 | id)
+    )
+
+### Remove mom age
+
+full4 = gls(model = antiscore ~ occ + 
+      as.factor(female) + 
+      childage + 
+      hispanic + 
+      black + 
+      as.factor(momwork) +
+      pov + 
+      as.factor(female):occ,
+    data = anti,
+    correlation = corSymm(form = ~ 0 | id)
+    )
+
+
+
+stargazer(full, full1, full2, full3, full4,
+          report=('vc*p'),
+          header = FALSE,
+          title = "Backwards Step Regression",
+          table.placement = "H",
+          covariate.labels = c("Year (Continuous)",
+                               "Year2",
+                               "Mom Age",
+                               "Female = 1",
+                               "Age",
+                               "Hispanic = 1",
+                               "Black = 1",
+                               "Mom Works = 1",
+                               "Mom Married = 1",
+                               "Poverty = 1",
+                               "Year * Female",
+                               "Year2 * Female"))
+
+
+```
+
+
+
+### iii. State the form of the “best” model M2 that you fit to the data. Based on the results from fitting this model, what do you think about the changes in the mean response over time between boys and girls? Interpret the respective model coefficients.
+
+### iv. The doctor wishes to know how well the model predicts for individuals with id = 1, 4, 8, 24, 39, and 41. Provide him with the actual values (observed and predicted), and a plot to answer his question. Comment on the results.
+
+```{r, echo = FALSE, message = FALSE}
+
+### Predicted vs Observed Plots
+
+anti = anti %>%
+  mutate(predictions = fitted(full4))
+
+forplot = anti %>%
+  filter(id %in% c(1, 4, 8, 24, 39, 41))
+
+forplot %>%
+  ggplot(aes(x = occ)) +
+  geom_point(aes(y = antiscore)) + 
+  geom_line(aes(y = predictions, group = id)) + 
+  facet_wrap(~id) +
+  theme_classic() +
+  ylab("Anti Social Score") +
+  xlab("Year") +
+  ggtitle("Observed vs Predicted: Marginal") +
+  scale_x_continuous(breaks = c(90, 92, 94)) +
+  theme(text=element_text(size=12,  family="CM Sans"), strip.background = element_blank()) 
+
+
+
+
+```
+
+### v. Adjust your results (M2) for poverty status (if you have not done so already). Interpret the effect of this covariate on the outcome of interest.
+
+
+
+
+
+
+## Question 6:  Another doctor (Doctor 3) is more interested in being able to give advice to parents regarding worrisome social behavior of their child based on the specific characteristics of each case.
+
+### i. What methodology would you recommend in this case? Explain.
+
+-mixed model, can make preds for individuals
+
+### ii. Perform a detailed model selection procedure to find the model (M3) that best fits the data. Describe the steps you followed and provide results for M3. State the form of model M3 and describe the main model assumptions.
+
+```{r, echo = FALSE, results = 'asis'}
+
+### Assume unstructured covariance structure
+### Choose random effects with full model
+
+### First start everyone at time 1
+anti = anti %>%
+  group_by(id) %>%
+  mutate(time = occ - min(occ))
+
+
+### Rand int and slope time
+q6model1 = lmer(antiscore ~ time + 
+                  I(time^2) +
+                  momage + 
+                  as.factor(female) + 
+                  childage + 
+                  as.factor(hispanic) + 
+                  as.factor(black) + 
+                  as.factor(momwork) +
+                  as.factor(married) +
+                  as.factor(pov) +
+                  as.factor(female):time +
+                  as.factor(female):I(time^2) +
+                  (1 + time | id),
+                data = anti)
+
+### Rand int 
+q6model2 = lmer(antiscore ~ time + 
+                  I(time^2) +
+                  momage + 
+                  as.factor(female) + 
+                  childage + 
+                  as.factor(hispanic) + 
+                  as.factor(black) + 
+                  as.factor(momwork) +
+                  as.factor(married) +
+                  as.factor(pov) ++
+                  as.factor(female):time +
+                  as.factor(female):I(time^2) +
+                  (1 | id),
+                data = anti)
+
+### Rand slope
+q6model3 = lmer(antiscore ~ time + 
+                  I(time^2) +
+                  momage + 
+                  as.factor(female) + 
+                  childage + 
+                  as.factor(hispanic) + 
+                  as.factor(black) + 
+                  as.factor(momwork) +
+                  as.factor(married) +
+                  as.factor(pov) ++
+                  as.factor(female):time +
+                  as.factor(female):I(time^2) +
+                  (time - 1 | id),
+                data = anti)
+
+stargazer(q6model1, q6model2, q6model3,
+          header = FALSE,
+          table.placement = "H",
+          title = "Choosing Random Effects",
+          column.labels = c("Random Int and Slope",
+                            "Random Int",
+                            "Random Slope"),
+          covariate.labels = c( "Time",
+                                "Time2",
+                                "Mom's Age",
+                                "Female = 1",
+                                "Age",
+                                "Hispanic = 1",
+                                "Black = 1",
+                                "Mom Works = 1",
+                                "Mom Married = 1",
+                                "Poverty = 1",
+                                "Time * Female",
+                                "Time2 * Female"))
+
+```
+
+```{r, echo = FALSE, results = 'asis'}
+
+### Backwards step choose covariates
+
+### Full model
+q6model4 = lmer(antiscore ~ time + 
+                  I(time^2) +
+                  momage + 
+                  as.factor(female) + 
+                  childage + 
+                  as.factor(hispanic) + 
+                  as.factor(black) + 
+                  as.factor(momwork) +
+                  as.factor(married) +
+                  as.factor(pov) +
+                  as.factor(female):time +
+                  as.factor(female):I(time^2) +
+                  (1 + time | id),
+                data = anti)
+
+
+### Remove time2 * female
+q6model5 = lmer(antiscore ~ time + 
+                  I(time^2) +
+                  momage + 
+                  as.factor(female) + 
+                  childage + 
+                  as.factor(hispanic) + 
+                  as.factor(black) + 
+                  as.factor(momwork) +
+                  as.factor(married) +
+                  as.factor(pov) +
+                  as.factor(female):time +
+                  (1 + time | id),
+                data = anti)
+
+### Remove mom married
+q6model6 = lmer(antiscore ~ time + 
+                  I(time^2) +
+                  momage + 
+                  as.factor(female) + 
+                  childage + 
+                  as.factor(hispanic) + 
+                  as.factor(black) + 
+                  as.factor(momwork) +
+                  as.factor(pov) +
+                  as.factor(female):time +
+                  (1 + time | id),
+                data = anti)
+
+### Remove year2
+q6model7 = lmer(antiscore ~ time + 
+                  momage + 
+                  as.factor(female) + 
+                  childage + 
+                  as.factor(hispanic) + 
+                  as.factor(black) + 
+                  as.factor(momwork) +
+                  as.factor(pov) +
+                  as.factor(female):time +
+                  (1 + time | id),
+                data = anti)
+
+### Remove Mom Age
+q6model8 = lmer(antiscore ~ time +
+                  as.factor(female) + 
+                  childage + 
+                  as.factor(hispanic) + 
+                  as.factor(black) + 
+                  as.factor(momwork) +
+                  as.factor(pov) +
+                  as.factor(female):time +
+                  (1 + time | id),
+                data = anti)
+
+
+
+stargazer(q6model4, q6model5, q6model6, q6model7, q6model8,
+          header = FALSE,
+          table.placement = "H",
+          report=('vc*p'),
+          title = "Choosing Covariates: Backwards Step Regression",
+          covariate.labels = c( "Time",
+                                "Time2",
+                                "Mom's Age",
+                                "Female = 1",
+                                "Age",
+                                "Hispanic = 1",
+                                "Black = 1",
+                                "Mom Works = 1",
+                                "Mom Married = 1",
+                                "Poverty = 1",
+                                "Time * Female",
+                                "Time2 * Female"))
+
+```
+
+
+### iii. Provide descriptive statistics and plot(s) to compare the estimated (by M3) vs the observed averages by sex at each time point. 
+
+```{r}
+
+
+
+
+```
